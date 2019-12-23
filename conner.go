@@ -1,7 +1,6 @@
 package conn
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -25,7 +24,6 @@ func NewExternalProcedure(conners ...Conner) *ExternalProcedure {
 		if err != nil {
 			log.Printf(connErrF, err)
 		}
-		fmt.Println(e.Conners)
 		e.Conners = append(e.Conners, conner)
 	}
 	return e

@@ -2,8 +2,8 @@ package conn
 
 import (
 	"fmt"
-	"github.com/jinzhu/gorm"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jinzhu/gorm"
 )
 
 var (
@@ -52,7 +52,6 @@ func (m *MysqlConfig) Conn() error {
 	dbUrl := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&loc=%s&parseTime=true",
 		m.user, m.password, m.host, m.port, m.database, "Local")
 	fmt.Printf(messageFormate, "mysql 开始连接")
-	fmt.Println(m.host)
 	m.rep.DB, err = gorm.Open("mysql", dbUrl)
 	m.rep.DB.SingularTable(true)
 	if err != nil {
@@ -85,8 +84,7 @@ func getRepository(repo *Repository, databases ...string) *Repository {
 	} else {
 		database = databases[0]
 	}
-
-	if repo.DB == nil {
+	if repo == nil {
 		if dbs[database].DB == nil {
 			c := configs[database]
 			conf := NewMysqlConfig(c.host, c.port, c.user, c.password, c.database)

@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	dbs            = make(map[string]*Repository)
+	dbs            = make(map[string]Repository)
 	configs        = make(map[string]*MysqlConfig)
 	messageFormate = "============%s\n"
 	DefDb          = ""
@@ -37,7 +37,7 @@ func NewMysqlConfig(host, port, user, password, database string) *MysqlConfig {
 			password: password,
 			database: database,
 		}
-		if len(configs) == 0{
+		if len(configs) == 0 {
 			DefDb = database
 		}
 		configs[database] = conf
@@ -60,7 +60,7 @@ func (m *MysqlConfig) Conn() error {
 	}
 	fmt.Printf(messageFormate, "mysql 连接成功")
 	//将连接放入缓存
-	dbs[m.database] = &m.rep
+	dbs[m.database] = m.rep
 	return nil
 }
 
@@ -79,24 +79,84 @@ func GDB(databases ...string) *Repository {
 
 func getRepository(repo *Repository, databases ...string) *Repository {
 	var database string
+	var repD Repository
 	if len(databases) == 0 {
 		database = DefDb
 	} else {
 		database = databases[0]
 	}
+	if rep, ok := dbs[database]; !ok || rep.DB == nil {
+		c := configs[database]
+		conf := NewMysqlConfig(c.host, c.port, c.user, c.password, c.database)
+		err := conf.Conn()
+		if err != nil {
+			fmt.Printf(messageFormate, "mysql 连接失败")
+		}
+		dbs[database] = conf.rep
+		repD = conf.rep
+	} else {
+		repD = dbs[database]
+	}
 	if repo == nil {
-		if dbs[database].DB == nil {
-			c := configs[database]
-			conf := NewMysqlConfig(c.host, c.port, c.user, c.password, c.database)
-			err := conf.Conn()
-			if err != nil {
-				fmt.Printf(messageFormate, "mysql 连接失败")
-			}
-			dbs[database] = &conf.rep
-			repo = &conf.rep
-		} else {
-			repo = dbs[database]
+		repo = &repD
+	} else {
+		if repo.DB == nil {
+			repo.DB = repD.DB
 		}
 	}
 	return repo
 }
+
+func (repo *Repository) Begin() *Repository {
+	if repo == nil {
+		repo.GDB()
+	}
+	repo.DB = repo.DB.Begin()
+	return repo
+}
+
+func (repo *Repository) ConTran(rep *Repository) *Repository {
+	if repo == nil {
+		repo = &Repository{}
+	}
+	repo.DB = rep.DB
+	return rep
+}
+
+/*
+事务特别说明:
+type ARepository struct {
+	Repository //如果像这样为非指针继承, 夸方法的事务如下
+}
+//且夸方法的这个结构体也要是非指针继承
+type BRepository struct {
+	Repository
+}
+var (
+	a ARepository
+	b BRepository
+)
+a.GDB().Begin()
+a.Insert()
+b.ConTran(&a.Repository).Insert() //将事务继续往下丢执行sql
+b.Commit()
+
+//如果是指针
+type CRepository struct {
+	*Repository
+}
+
+type DRepository struct {
+	Repository
+}
+var (
+	c CRepository
+	d DRepository
+)
+
+c.Repository = c.GDB()
+c.Begin()
+c.Insert()
+d.ConTran(c.Repository).Insert()
+d.Commit()
+*/
